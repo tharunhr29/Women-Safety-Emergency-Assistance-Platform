@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Shield, MapPin, User, Navigation, CheckCircle } from 'lucide-react';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:5000');
+const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
 
 const ActiveIncident = () => {
   const location = useLocation();

@@ -5,7 +5,7 @@ import { getActiveAlerts, respondToAlert } from '../services/api';
 import { ShieldAlert, MapPin, Clock, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const socket = io('http://localhost:5000');
+const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
 
 const VolunteerDashboard = () => {
   const { user } = useAuth();

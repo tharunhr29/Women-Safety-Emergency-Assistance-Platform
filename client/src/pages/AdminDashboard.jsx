@@ -8,7 +8,7 @@ import {
 import { ShieldCheck, Users, Map, FileText, CheckCircle, Trash2, Eye, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const socket = io('http://localhost:5000');
+const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
 
 const AdminDashboard = () => {
   const { user } = useAuth();
