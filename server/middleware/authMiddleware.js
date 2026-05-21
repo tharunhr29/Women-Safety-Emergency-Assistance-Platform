@@ -38,4 +38,14 @@ const admin = (req, res, next) => {
   }
 };
 
-module.exports = { protect, admin };
+const verifiedVolunteer = (req, res, next) => {
+  if (req.user && (req.user.role === 'admin' || (req.user.role === 'volunteer' && req.user.isVerified))) {
+    next();
+  } else if (req.user && req.user.role === 'volunteer') {
+    res.status(403).json({ message: "Your volunteer account is pending admin verification. You cannot receive or respond to alerts yet." });
+  } else {
+    res.status(403).json({ message: "Access restricted to verified volunteers only." });
+  }
+};
+
+module.exports = { protect, admin, verifiedVolunteer };
