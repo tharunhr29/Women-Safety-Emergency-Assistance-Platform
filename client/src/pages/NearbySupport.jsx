@@ -16,13 +16,18 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Helper component to dynamically re-center the map when the position changes
+// Helper component to dynamically re-center the map when the position changes and force layout refresh to prevent gray areas
 function RecenterMap({ center }) {
   const map = useMap();
   useEffect(() => {
     if (center) {
       map.setView(center, map.getZoom());
     }
+    // Force Leaflet to recalculate container dimensions after page load / fade-in transitions
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 400);
+    return () => clearTimeout(timer);
   }, [center, map]);
   return null;
 }
