@@ -130,14 +130,25 @@ const rateResponders = async (req, res) => {
       return res.status(400).json({ message: "Invalid ratings data format" });
     }
 
+    console.log(`[Backend] Processing ratings for alert ${alert._id}:`, ratings);
+
     ratings.forEach(({ volunteerId, rating, feedback }) => {
-      const responder = alert.responders.find(r => r.volunteerId.toString() === volunteerId.toString());
+      const responder = alert.responders.find(r => {
+        if (!r.volunteerId) return false;
+        const vIdStr = r.volunteerId._id ? r.volunteerId._id.toString() : r.volunteerId.toString();
+        return vIdStr === volunteerId.toString();
+      });
+      
       if (responder) {
-        responder.rating = rating;
+        responder.rating = Number(rating);
         responder.feedback = feedback || "";
+        console.log(`[Backend] Applied rating ${rating} to volunteer ${volunteerId}`);
+      } else {
+        console.log(`[Backend] Responder volunteer ${volunteerId} not found in alert responders list`);
       }
     });
 
+    alert.markModified('responders');
     const updatedAlert = await alert.save();
     res.json(updatedAlert);
   } else {

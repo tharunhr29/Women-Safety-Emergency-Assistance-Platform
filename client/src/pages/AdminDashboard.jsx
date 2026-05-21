@@ -168,11 +168,11 @@ const AdminDashboard = () => {
       if (alert.responders && alert.responders.length > 0) {
         alert.responders.forEach(r => {
           const vId = r.volunteerId?._id || r.volunteerId;
-          if (vId && vId.toString() === userId.toString() && r.rating !== undefined) {
+          if (vId && vId.toString() === userId.toString() && r.rating != null) {
             ratings.push({
               alertId: alert._id,
               victimName: alert.userId?.name || 'Unknown User',
-              rating: r.rating,
+              rating: Number(r.rating),
               feedback: r.feedback || '',
               date: new Date(alert.timestamp).toLocaleDateString()
             });
