@@ -231,21 +231,22 @@ const Dashboard = () => {
           
           {/* Left Side: SOS Button Card */}
           <div className="glass-card" style={{ 
-            padding: '3.5rem 2rem', 
+            padding: isAlertActive ? '2rem 1.5rem' : '3.5rem 2rem', 
             textAlign: 'center', 
             display: 'flex', 
             flexDirection: 'column', 
             justifyContent: 'center', 
             alignItems: 'center',
             position: 'relative',
-            overflow: 'hidden',
+            overflow: 'visible',
             border: '1px solid rgba(255,255,255,0.05)',
-            background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)'
+            background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)',
+            transition: 'all 0.3s ease'
           }}>
             {/* Subtle Grid Background */}
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)', backgroundSize: '30px 30px', pointerEvents: 'none' }}></div>
 
-            <div style={{ position: 'relative', zIndex: 10 }}>
+            <div style={{ position: 'relative', zIndex: 10, width: '100%' }}>
               {user?.sosBanUntil && new Date(user.sosBanUntil) > Date.now() ? (
                 <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '1rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid rgba(239, 68, 68, 0.3)', textAlign: 'center', fontWeight: 'bold' }}>
                   <AlertCircle size={20} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} />
@@ -259,7 +260,7 @@ const Dashboard = () => {
               ) : null}
 
               <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem', color: 'white' }}>Emergency SOS</h2>
-              <p style={{ color: 'var(--text-muted)', marginBottom: '3.5rem', maxWidth: '350px', margin: '0 auto 3.5rem auto', lineHeight: 1.6 }}>
+              <p style={{ color: 'var(--text-muted)', marginBottom: isAlertActive ? '1.5rem' : '3.5rem', maxWidth: '350px', margin: isAlertActive ? '0 auto 1.5rem auto' : '0 auto 3.5rem auto', lineHeight: 1.6, transition: 'all 0.3s ease' }}>
                 Hold the button below to instantly alert emergency contacts and nearby support teams.
               </p>
 
