@@ -375,9 +375,16 @@ const Dashboard = () => {
                       </div>
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.85rem', marginTop: '0.25rem' }}>
-                        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                          Need to coordinate?
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            Need to coordinate?
+                          </span>
+                          {responder.volunteerPhone && responder.volunteerPhone !== 'N/A' && (
+                            <span style={{ fontSize: '0.95rem', color: '#10b981', fontWeight: '600', marginTop: '0.15rem' }}>
+                              {responder.volunteerPhone}
+                            </span>
+                          )}
+                        </div>
                         
                         <a href={`tel:${responder.volunteerPhone}`} style={{ 
                           padding: '0.5rem 1.25rem', 
