@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { updateResponseStatus } from '../services/api';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Shield, MapPin, User, Navigation, CheckCircle } from 'lucide-react';
+
+// Helper component to dynamically re-center the map when the position changes
+function RecenterMap({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.setView(center, map.getZoom());
+    }
+  }, [center, map]);
+  return null;
+}
 import { io } from 'socket.io-client';
 
 const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
@@ -65,6 +76,7 @@ const ActiveIncident = () => {
           </h2>
           <div style={{ flex: 1, borderRadius: '1rem', overflow: 'hidden' }}>
             <MapContainer center={userLocation} zoom={16} style={{ height: '100%', width: '100%' }}>
+              <RecenterMap center={userLocation} />
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; OpenStreetMap'

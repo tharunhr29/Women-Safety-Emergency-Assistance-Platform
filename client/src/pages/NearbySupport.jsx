@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Shield, Home, Users } from 'lucide-react';
 import { getSafeZones } from '../services/api';
@@ -16,6 +16,17 @@ let DefaultIcon = L.icon({
     iconAnchor: [12, 41]
 });
 L.Marker.prototype.options.icon = DefaultIcon;
+
+// Helper component to dynamically re-center the map when the position changes
+function RecenterMap({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.setView(center, map.getZoom());
+    }
+  }, [center, map]);
+  return null;
+}
 
 const NearbySupport = () => {
   const [position, setPosition] = useState([51.505, -0.09]); // Default to London
@@ -73,6 +84,7 @@ const NearbySupport = () => {
           zIndex: 1
         }}>
           <MapContainer center={position} zoom={13} style={{ height: '100%', width: '100%' }}>
+            <RecenterMap center={position} />
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
