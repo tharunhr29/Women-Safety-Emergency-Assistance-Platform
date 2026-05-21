@@ -33,9 +33,28 @@ const NearbySupport = () => {
   const [safeZones, setSafeZones] = useState([]);
 
   useEffect(() => {
-    navigator.geolocation.getCurrentPosition((pos) => {
-      setPosition([pos.coords.latitude, pos.coords.longitude]);
-    });
+    // 1. Immediate IP Geolocation Fallback (fast city-level center to avoid showing London)
+    fetch('https://ipapi.co/json/')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.latitude && data.longitude) {
+          setPosition([data.latitude, data.longitude]);
+        }
+      })
+      .catch((err) => console.warn("Initial IP geolocation fallback failed:", err));
+
+    // 2. High-precision Browser Geolocation (refines to exact street/building coordinates)
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setPosition([pos.coords.latitude, pos.coords.longitude]);
+        },
+        (error) => {
+          console.warn("High-precision browser geolocation failed/blocked:", error);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
 
     const fetchZones = async () => {
       try {
