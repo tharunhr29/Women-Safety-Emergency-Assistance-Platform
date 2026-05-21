@@ -114,11 +114,43 @@ const updateResponseStatus = async (req, res) => {
   }
 };
 
+// @desc    Rate responders for an alert
+// @route   PUT /api/alerts/:id/rate
+// @access  Private
+const rateResponders = async (req, res) => {
+  const { ratings } = req.body; // Expect array of { volunteerId, rating, feedback }
+  const alert = await Alert.findById(req.params.id);
+
+  if (alert) {
+    if (alert.userId.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    if (!ratings || !Array.isArray(ratings)) {
+      return res.status(400).json({ message: "Invalid ratings data format" });
+    }
+
+    ratings.forEach(({ volunteerId, rating, feedback }) => {
+      const responder = alert.responders.find(r => r.volunteerId.toString() === volunteerId.toString());
+      if (responder) {
+        responder.rating = rating;
+        responder.feedback = feedback || "";
+      }
+    });
+
+    const updatedAlert = await alert.save();
+    res.json(updatedAlert);
+  } else {
+    res.status(404).json({ message: "Alert not found" });
+  }
+};
+
 module.exports = {
   createAlert,
   getAlertHistory,
   resolveAlert,
   getActiveAlerts,
   respondToAlert,
-  updateResponseStatus
+  updateResponseStatus,
+  rateResponders
 };

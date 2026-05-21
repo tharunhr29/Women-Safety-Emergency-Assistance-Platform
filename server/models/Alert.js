@@ -13,7 +13,9 @@ const alertSchema = new mongoose.Schema({
   responders: [{
     volunteerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     status: { type: String, enum: ['en_route', 'arrived'], default: 'en_route' },
-    timestamp: { type: Date, default: Date.now }
+    timestamp: { type: Date, default: Date.now },
+    rating: { type: Number, min: 1, max: 5 },
+    feedback: { type: String }
   }]
 });
 

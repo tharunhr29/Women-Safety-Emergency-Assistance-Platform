@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { io } from 'socket.io-client';
 import { AlertCircle, MapPin, ShieldAlert, PhoneCall, CheckCircle, Navigation, HeartHandshake, Clock } from 'lucide-react';
-import { createAlert, getAlertHistory, resolveAlert } from '../services/api';
+import { createAlert, getAlertHistory, resolveAlert, rateResponders } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
@@ -14,6 +14,8 @@ const Dashboard = () => {
   const [activeResponders, setActiveResponders] = useState([]);
   const [location, setLocation] = useState(null);
   const [error, setError] = useState(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingsState, setRatingsState] = useState({});
 
   const navigate = useNavigate();
 
@@ -155,12 +157,49 @@ const Dashboard = () => {
     try {
       await resolveAlert(activeAlertId);
       setIsAlertActive(false);
-      setActiveAlertId(null);
-      setActiveResponders([]);
       setError(null);
+      
+      if (activeResponders && activeResponders.length > 0) {
+        // Initialize ratings state with 5 stars for each active responder
+        const initialRatings = {};
+        activeResponders.forEach(r => {
+          initialRatings[r.volunteerId] = { rating: 5, feedback: '' };
+        });
+        setRatingsState(initialRatings);
+        setShowRatingModal(true);
+      } else {
+        // No responders to rate, clear active SOS states immediately
+        setActiveAlertId(null);
+        setActiveResponders([]);
+      }
     } catch (err) {
       console.error("Failed to resolve alert:", err);
       setError("Failed to cancel SOS. Please try again.");
+    }
+  };
+
+  const handleSubmitRatings = async () => {
+    try {
+      const ratingsPayload = Object.entries(ratingsState).map(([volunteerId, data]) => ({
+        volunteerId,
+        rating: data.rating,
+        feedback: data.feedback
+      }));
+
+      await rateResponders(activeAlertId, ratingsPayload);
+      
+      // Complete cleanup
+      setActiveAlertId(null);
+      setActiveResponders([]);
+      setShowRatingModal(false);
+      setRatingsState({});
+    } catch (err) {
+      console.error("Failed to submit volunteer ratings:", err);
+      // Close the modal and cleanup anyway to avoid blocking the user flow
+      setActiveAlertId(null);
+      setActiveResponders([]);
+      setShowRatingModal(false);
+      setRatingsState({});
     }
   };
 
@@ -482,6 +521,203 @@ const Dashboard = () => {
 
         </div>
       </div>
+
+      {/* Volunteer Rating & Feedback Modal */}
+      {showRatingModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
+          background: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '1rem'
+        }}>
+          <div className="glass-card" style={{
+            width: '100%',
+            maxWidth: '550px',
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.98) 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '1.5rem',
+            padding: '2.5rem',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(99, 102, 241, 0.15)',
+            color: 'white',
+            position: 'relative',
+            textAlign: 'center'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+              <div style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                color: '#10b981',
+                boxShadow: '0 0 15px rgba(16, 185, 129, 0.2)'
+              }}>
+                <CheckCircle size={32} />
+              </div>
+            </div>
+            
+            <h2 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.5rem', background: 'linear-gradient(to right, #ffffff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              You Are Safe Now!
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.975rem', marginBottom: '2rem', lineHeight: 1.5 }}>
+              Thank you for marking yourself safe. Please take a moment to rate and review the volunteers who responded to your SOS.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxHeight: '320px', overflowY: 'auto', paddingRight: '0.5rem', marginBottom: '2rem', textAlign: 'left' }}>
+              {activeResponders.map((responder) => {
+                const vId = responder.volunteerId;
+                const currentRating = ratingsState[vId]?.rating || 5;
+                const currentFeedback = ratingsState[vId]?.feedback || '';
+
+                return (
+                  <div key={vId} style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    borderRadius: '1rem',
+                    padding: '1.25rem',
+                    transition: 'all 0.2s ease'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <div>
+                        <h4 style={{ margin: 0, fontWeight: 700, color: 'white', fontSize: '1.1rem' }}>{responder.volunteerName}</h4>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Status: {responder.status === 'arrived' ? 'Arrived' : 'En Route'}</span>
+                      </div>
+                      
+                      {/* 5-Star Rating Buttons */}
+                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setRatingsState(prev => ({
+                              ...prev,
+                              [vId]: { ...prev[vId], rating: star }
+                            }))}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '0.15rem',
+                              fontSize: '1.5rem',
+                              color: star <= currentRating ? '#fbbf24' : 'rgba(255, 255, 255, 0.2)',
+                              filter: star <= currentRating ? 'drop-shadow(0 0 4px rgba(250, 204, 21, 0.5))' : 'none',
+                              transition: 'transform 0.15s ease, color 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'scale(1.2) rotate(5deg)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+                            }}
+                          >
+                            ★
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Text Area for Feedback */}
+                    <textarea
+                      value={currentFeedback}
+                      onChange={(e) => setRatingsState(prev => ({
+                        ...prev,
+                        [vId]: { ...prev[vId], feedback: e.target.value }
+                      }))}
+                      placeholder="Write an optional feedback comment (e.g. speed, communication, helpfulness)..."
+                      rows={2}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(15, 23, 42, 0.6)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '0.75rem',
+                        padding: '0.75rem 1rem',
+                        color: 'white',
+                        fontSize: '0.875rem',
+                        resize: 'none',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                        fontFamily: 'inherit',
+                        transition: 'border-color 0.2s ease',
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = 'rgba(99, 102, 241, 0.5)';
+                        e.target.style.boxShadow = '0 0 10px rgba(99, 102, 241, 0.15)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                        e.target.style.boxShadow = 'none';
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                onClick={() => {
+                  // Cancel / Skip rating and clear states
+                  setActiveAlertId(null);
+                  setActiveResponders([]);
+                  setShowRatingModal(false);
+                  setRatingsState({});
+                }}
+                style={{
+                  flex: 1,
+                  padding: '0.875rem',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'var(--text-muted)',
+                  borderRadius: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+              >
+                Skip Review
+              </button>
+              <button
+                onClick={handleSubmitRatings}
+                style={{
+                  flex: 1.5,
+                  padding: '0.875rem',
+                  background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                  border: 'none',
+                  color: 'white',
+                  borderRadius: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(99, 102, 241, 0.6)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(99, 102, 241, 0.4)';
+                }}
+              >
+                Submit Feedback
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

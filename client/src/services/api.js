@@ -25,6 +25,7 @@ export const addContact = (data) => API.post('/users/contacts', data);
 export const createAlert = (alertData) => API.post('/alerts', alertData);
 export const getAlertHistory = () => API.get('/alerts/history');
 export const resolveAlert = (id) => API.put(`/alerts/${id}/resolve`);
+export const rateResponders = (id, ratings) => API.put(`/alerts/${id}/rate`, { ratings });
 
 export const getActiveAlerts = () => API.get('/alerts/active');
 export const respondToAlert = (id) => API.put(`/alerts/${id}/respond`);

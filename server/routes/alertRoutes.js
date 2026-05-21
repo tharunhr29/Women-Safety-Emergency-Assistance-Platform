@@ -6,13 +6,15 @@ const {
   resolveAlert,
   getActiveAlerts,
   respondToAlert,
-  updateResponseStatus
+  updateResponseStatus,
+  rateResponders
 } = require("../controllers/alertController");
 const { protect } = require("../middleware/authMiddleware");
 
 router.post("/", protect, createAlert);
 router.get("/history", protect, getAlertHistory);
 router.put("/:id/resolve", protect, resolveAlert);
+router.put("/:id/rate", protect, rateResponders);
 
 // Volunteer routes
 router.get("/active", protect, getActiveAlerts);

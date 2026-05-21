@@ -162,6 +162,35 @@ const AdminDashboard = () => {
     : "N/A";
   // -------------------------
 
+  const getVolunteerRatings = (userId) => {
+    const ratings = [];
+    alerts.forEach(alert => {
+      if (alert.responders && alert.responders.length > 0) {
+        alert.responders.forEach(r => {
+          const vId = r.volunteerId?._id || r.volunteerId;
+          if (vId && vId.toString() === userId.toString() && r.rating !== undefined) {
+            ratings.push({
+              alertId: alert._id,
+              victimName: alert.userId?.name || 'Unknown User',
+              rating: r.rating,
+              feedback: r.feedback || '',
+              date: new Date(alert.timestamp).toLocaleDateString()
+            });
+          }
+        });
+      }
+    });
+    
+    const total = ratings.reduce((sum, r) => sum + r.rating, 0);
+    const avg = ratings.length > 0 ? (total / ratings.length).toFixed(1) : 'N/A';
+    
+    return {
+      ratingsList: ratings,
+      averageRating: avg,
+      totalRatings: ratings.length
+    };
+  };
+
   return (
     <div className="container fade-in" style={{ padding: '2rem 0' }}>
       <div className="glass-card" style={{ padding: '2rem' }}>
@@ -209,6 +238,7 @@ const AdminDashboard = () => {
                     <th style={{ padding: '1rem' }}>Email</th>
                     <th style={{ padding: '1rem' }}>Role</th>
                     <th style={{ padding: '1rem' }}>Status</th>
+                    <th style={{ padding: '1rem' }}>Rating</th>
                     <th style={{ padding: '1rem' }}>Action</th>
                   </tr>
                 </thead>
@@ -242,6 +272,20 @@ const AdminDashboard = () => {
                         {u.falseAlarmCount > 0 && !(u.sosBanUntil && new Date(u.sosBanUntil) > Date.now()) && (
                           <div style={{ color: 'var(--warning)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{u.falseAlarmCount} False Alarms</div>
                         )}
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        {u.role === 'volunteer' ? (
+                          (() => {
+                            const { averageRating, totalRatings } = getVolunteerRatings(u._id);
+                            return averageRating !== 'N/A' ? (
+                              <span style={{ color: '#fbbf24', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                ★ {averageRating} <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 'normal' }}>({totalRatings})</span>
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>No ratings</span>
+                            );
+                          })()
+                        ) : 'N/A'}
                       </td>
                       <td style={{ padding: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                         <button 
@@ -509,6 +553,49 @@ const AdminDashboard = () => {
                 <p style={{ fontStyle: 'italic', color: 'rgba(255,255,255,0.5)' }}>No contacts provided.</p>
               )}
             </div>
+
+            {selectedUser.role === 'volunteer' && (() => {
+              const { averageRating, totalRatings, ratingsList } = getVolunteerRatings(selectedUser._id);
+              return (
+                <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <strong style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Volunteer Performance</strong>
+                    {averageRating !== 'N/A' ? (
+                      <span style={{ color: '#fbbf24', fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        ★ {averageRating} / 5.0 <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 500 }}>({totalRatings} reviews)</span>
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No reviews yet</span>
+                    )}
+                  </div>
+                  
+                  {ratingsList.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '200px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                      {ratingsList.map((item, idx) => (
+                        <div key={idx} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', padding: '0.75rem 1rem', borderRadius: '0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                            <span style={{ fontWeight: 600, color: 'white', fontSize: '0.9rem' }}>{item.victimName}</span>
+                            <span style={{ color: '#fbbf24', fontWeight: 'bold', fontSize: '0.85rem' }}>{'★'.repeat(item.rating)}</span>
+                          </div>
+                          {item.feedback ? (
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4 }}>
+                              "{item.feedback}"
+                            </p>
+                          ) : (
+                            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>No comment provided</span>
+                          )}
+                          <div style={{ textAlign: 'right', marginTop: '0.25rem' }}>
+                            <small style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>{item.date}</small>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontStyle: 'italic', color: 'rgba(255,255,255,0.5)', margin: 0 }}>This volunteer hasn't received any feedback reviews yet.</p>
+                  )}
+                </div>
+              );
+            })()}
 
             {selectedUser.role === 'volunteer' && !selectedUser.isVerified && (
               <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem', textAlign: 'center' }}>
