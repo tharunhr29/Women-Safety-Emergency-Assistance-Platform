@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { updateResponseStatus } from '../services/api';
+import { updateResponseStatus, getActiveAlerts } from '../services/api';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Shield, MapPin, User, Navigation, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -51,16 +51,42 @@ const ActiveIncident = () => {
   const [status, setStatus] = useState('en_route'); // en_route or arrived
 
   useEffect(() => {
-    if (!alertData) {
-      navigate('/volunteer-dashboard');
-      return;
-    }
+    const restoreSession = async () => {
+      if (!alertData) {
+        try {
+          const { data } = await getActiveAlerts();
+          const found = data.find(a => a._id === id);
+          if (found) {
+            setAlertData(found);
+            setUserLocation([found.location.lat, found.location.lng]);
+            
+            // Restore correct arrived/en_route status for current volunteer
+            const myRecord = found.responders?.find(
+              r => (r.volunteerId?._id || r.volunteerId) === user?._id
+            );
+            if (myRecord) {
+              setStatus(myRecord.status || 'en_route');
+            }
+          } else {
+            navigate('/volunteer-dashboard');
+          }
+        } catch (err) {
+          console.error("Failed to restore volunteer incident session:", err);
+          navigate('/volunteer-dashboard');
+        }
+      }
+    };
+    restoreSession();
+  }, [alertData, id, user, navigate]);
+
+  useEffect(() => {
+    if (!alertData) return;
 
     // Listen for real-time location updates from the user
     socket.on('location_updated', (data) => {
-      // Assuming data contains userId. We should only update if it matches the alert's userId
-      const alertUserId = alertData.userId._id || alertData.userId;
-      if (data.userId === alertUserId) {
+      const alertUserId = alertData.userId?._id || alertData.userId;
+      const dataUserId = data.userId?._id || data.userId;
+      if (dataUserId === alertUserId) {
         setUserLocation([data.lat, data.lng]);
       }
     });
@@ -68,7 +94,7 @@ const ActiveIncident = () => {
     return () => {
       socket.off('location_updated');
     };
-  }, [alertData, navigate]);
+  }, [alertData]);
 
   const handleStatusUpdate = async (newStatus) => {
     try {

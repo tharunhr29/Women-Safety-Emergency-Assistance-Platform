@@ -55,6 +55,12 @@ const VolunteerDashboard = () => {
       
       navigate(`/incident/${alertId}`, { state: { alert: data } });
     } catch (error) {
+      if (error.response?.data?.message === "Already responding to this alert") {
+        // If already responding, proceed to tracking page directly
+        const existingAlert = alerts.find(a => a._id === alertId);
+        navigate(`/incident/${alertId}`, { state: { alert: existingAlert } });
+        return;
+      }
       alert(error.response?.data?.message || 'Failed to respond to alert');
     }
   };
@@ -99,9 +105,27 @@ const VolunteerDashboard = () => {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                  <button onClick={() => handleRespond(alert._id)} className="btn btn-danger" style={{ padding: '0.5rem 1.5rem', borderRadius: '2rem' }}>
-                    RESPOND NOW
-                  </button>
+                  {alert.responders?.some(
+                    r => (r.volunteerId?._id || r.volunteerId || '').toString() === (user?._id || '').toString()
+                  ) ? (
+                    <button 
+                      onClick={() => navigate(`/incident/${alert._id}`, { state: { alert } })} 
+                      className="btn" 
+                      style={{ 
+                        padding: '0.5rem 1.5rem', 
+                        borderRadius: '2rem',
+                        background: 'rgba(99, 102, 241, 0.2)',
+                        border: '1px solid var(--primary)',
+                        color: 'var(--primary)'
+                      }}
+                    >
+                      VIEW INCIDENT
+                    </button>
+                  ) : (
+                    <button onClick={() => handleRespond(alert._id)} className="btn btn-danger" style={{ padding: '0.5rem 1.5rem', borderRadius: '2rem' }}>
+                      RESPOND NOW
+                    </button>
+                  )}
                   <ChevronRight color="var(--text-muted)" />
                 </div>
               </div>
