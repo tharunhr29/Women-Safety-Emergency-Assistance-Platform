@@ -34,6 +34,34 @@ const Dashboard = () => {
     };
   }, [user, navigate]);
 
+  // Handle periodic real-time location updates when an SOS alert is active
+  useEffect(() => {
+    let interval;
+    if (isAlertActive && user) {
+      interval = setInterval(() => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              socket.emit('update_location', {
+                userId: user._id,
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude
+              });
+            },
+            (err) => {
+              console.error("SOS tracking GPS query failed:", err);
+            },
+            { enableHighAccuracy: true }
+          );
+        }
+      }, 5000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isAlertActive, user]);
+
   const handleSOS = async () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -51,18 +79,6 @@ const Dashboard = () => {
             
             const response = await createAlert(alertData);
             socket.emit('send_alert', { ...response.data, userName: user.name });
-            
-            // Broadcast location updates periodically if alert is active
-            const interval = setInterval(() => {
-              if (!isAlertActive) clearInterval(interval);
-              navigator.geolocation.getCurrentPosition((pos) => {
-                socket.emit('update_location', {
-                  userId: user._id,
-                  lat: pos.coords.latitude,
-                  lng: pos.coords.longitude
-                });
-              });
-            }, 5000);
 
           } catch (err) {
             console.error('Alert creation failed', err);
