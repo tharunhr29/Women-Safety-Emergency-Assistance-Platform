@@ -4,6 +4,19 @@ import { updateResponseStatus } from '../services/api';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Shield, MapPin, User, Navigation, CheckCircle } from 'lucide-react';
 
+// Fix for default marker icons in Leaflet with React
+import L from 'leaflet';
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+    iconUrl: icon,
+    shadowUrl: iconShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
 // Helper component to dynamically re-center the map when the position changes
 function RecenterMap({ center }) {
   const map = useMap();

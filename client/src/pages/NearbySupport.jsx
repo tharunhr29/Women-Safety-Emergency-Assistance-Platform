@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
 import { Shield, Home, Users } from 'lucide-react';
 import { getSafeZones } from '../services/api';
 
