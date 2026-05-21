@@ -114,7 +114,12 @@ const AdminDashboard = () => {
   const handleAddZone = async (e) => {
     e.preventDefault();
     try {
-      await adminCreateSafeZone(newZone);
+      const zoneData = {
+        ...newZone,
+        lat: parseFloat(newZone.lat),
+        lng: parseFloat(newZone.lng)
+      };
+      await adminCreateSafeZone(zoneData);
       setNewZone({ name: '', type: 'Safe Zone', lat: '', lng: '', contactNumber: '' });
       fetchData();
     } catch (error) {
