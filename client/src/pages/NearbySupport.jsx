@@ -113,23 +113,33 @@ const NearbySupport = () => {
               </Popup>
             </Marker>
 
-            {safeZones.map(zone => (
-              <React.Fragment key={zone.id}>
-                <Marker position={[zone.lat, zone.lng]}>
-                  <Popup>
-                    <div style={{ color: 'black' }}>
-                      <strong style={{ fontSize: '1.1rem', color: '#059669' }}>{zone.name}</strong><br/>
-                      <span style={{ fontSize: '0.9rem', color: '#666' }}>{zone.type}</span>
-                    </div>
-                  </Popup>
-                </Marker>
-                <Circle 
-                  center={[zone.lat, zone.lng]} 
-                  radius={500} 
-                  pathOptions={{ color: '#10b981', fillColor: '#10b981', fillOpacity: 0.15, weight: 2 }} 
-                />
-              </React.Fragment>
-            ))}
+            {safeZones.map(zone => {
+              const lat = zone.location?.lat;
+              const lng = zone.location?.lng;
+              if (lat === undefined || lng === undefined) return null;
+              return (
+                <React.Fragment key={zone._id || zone.id}>
+                  <Marker position={[lat, lng]}>
+                    <Popup>
+                      <div style={{ color: 'black' }}>
+                        <strong style={{ fontSize: '1.1rem', color: '#059669' }}>{zone.name}</strong><br/>
+                        <span style={{ fontSize: '0.9rem', color: '#666' }}>{zone.type}</span>
+                        {zone.contactNumber && (
+                          <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', fontWeight: 600 }}>
+                            📞 <a href={`tel:${zone.contactNumber}`} style={{ color: '#059669', textDecoration: 'none' }}>{zone.contactNumber}</a>
+                          </div>
+                        )}
+                      </div>
+                    </Popup>
+                  </Marker>
+                  <Circle 
+                    center={[lat, lng]} 
+                    radius={500} 
+                    pathOptions={{ color: '#10b981', fillColor: '#10b981', fillOpacity: 0.15, weight: 2 }} 
+                  />
+                </React.Fragment>
+              );
+            })}
           </MapContainer>
           
           {/* Floating Legend Overlay */}
