@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { updateResponseStatus } from '../services/api';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Shield, MapPin, User, Navigation, CheckCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 // Fix for default marker icons in Leaflet with React
 import L from 'leaflet';
@@ -32,6 +33,7 @@ import { io } from 'socket.io-client';
 const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
 
 const ActiveIncident = () => {
+  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -67,6 +69,15 @@ const ActiveIncident = () => {
     try {
       await updateResponseStatus(id, newStatus);
       setStatus(newStatus);
+
+      // Emit status update to victim in real-time
+      const victimId = alertData.userId._id || alertData.userId;
+      socket.emit('update_responder_status', {
+        userId: victimId,
+        volunteerId: user._id,
+        status: newStatus
+      });
+
       if (newStatus === 'arrived') {
         // You might want to stay on page or navigate away after a while
       }

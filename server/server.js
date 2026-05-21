@@ -96,6 +96,11 @@ io.on("connection", (socket) => {
     io.to(data.userId).emit("volunteer_responding", data);
   });
 
+  socket.on("update_responder_status", (data) => {
+    // data should contain { userId: string, volunteerId: string, status: string }
+    io.to(data.userId).emit("responder_status_updated", data);
+  });
+
   socket.on("update_location", (locationData) => {
     io.emit("location_updated", locationData);
   });

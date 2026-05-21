@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { io } from 'socket.io-client';
-import { AlertCircle, MapPin, ShieldAlert, PhoneCall } from 'lucide-react';
-import { createAlert } from '../services/api';
+import { AlertCircle, MapPin, ShieldAlert, PhoneCall, CheckCircle, Navigation, HeartHandshake, Clock } from 'lucide-react';
+import { createAlert, getAlertHistory, resolveAlert } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
@@ -10,10 +10,44 @@ const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
 const Dashboard = () => {
   const { user } = useAuth();
   const [isAlertActive, setIsAlertActive] = useState(false);
+  const [activeAlertId, setActiveAlertId] = useState(null);
+  const [activeResponders, setActiveResponders] = useState([]);
   const [location, setLocation] = useState(null);
   const [error, setError] = useState(null);
 
   const navigate = useNavigate();
+
+  // Restore active SOS state and existing responders on mount
+  useEffect(() => {
+    const checkActiveSOS = async () => {
+      if (user && user.role !== 'volunteer') {
+        try {
+          const { data } = await getAlertHistory();
+          if (data && data.length > 0) {
+            const latestAlert = data[0];
+            if (latestAlert.status === 'active') {
+              setIsAlertActive(true);
+              setActiveAlertId(latestAlert._id);
+              
+              if (latestAlert.responders && latestAlert.responders.length > 0) {
+                const formatted = latestAlert.responders.map(r => ({
+                  volunteerId: r.volunteerId?._id || r.volunteerId,
+                  volunteerName: r.volunteerId?.name || 'Volunteer Helper',
+                  volunteerPhone: r.volunteerId?.phone || 'N/A',
+                  status: r.status || 'en_route',
+                  respondedAt: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                }));
+                setActiveResponders(formatted);
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error restoring active SOS session:", err);
+        }
+      }
+    };
+    checkActiveSOS();
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -23,14 +57,33 @@ const Dashboard = () => {
         socket.emit('join_room', user._id);
         
         socket.on('volunteer_responding', (data) => {
-          alert(`Help is on the way! ${data.volunteerName} has responded to your alert.`);
-          // We could also set state here to show it in the UI instead of an alert
+          // Add responder if not already in list
+          setActiveResponders(prev => {
+            if (prev.some(r => r.volunteerId === data.volunteerId)) {
+              return prev;
+            }
+            return [...prev, {
+              volunteerId: data.volunteerId,
+              volunteerName: data.volunteerName,
+              volunteerPhone: data.volunteerPhone || 'N/A',
+              status: 'en_route',
+              respondedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }];
+          });
+        });
+
+        socket.on('responder_status_updated', (data) => {
+          // Update status dynamically (e.g. from 'en_route' to 'arrived')
+          setActiveResponders(prev => 
+            prev.map(r => r.volunteerId === data.volunteerId ? { ...r, status: data.status } : r)
+          );
         });
       }
     }
     
     return () => {
       socket.off('volunteer_responding');
+      socket.off('responder_status_updated');
     };
   }, [user, navigate]);
 
@@ -69,6 +122,7 @@ const Dashboard = () => {
           const { latitude, longitude } = position.coords;
           setLocation({ lat: latitude, lng: longitude });
           setIsAlertActive(true);
+          setError(null);
 
           try {
             const alertData = {
@@ -78,11 +132,13 @@ const Dashboard = () => {
             };
             
             const response = await createAlert(alertData);
+            setActiveAlertId(response.data._id);
             socket.emit('send_alert', { ...response.data, userName: user.name });
 
           } catch (err) {
             console.error('Alert creation failed', err);
             setError('Failed to trigger alert. Please try again.');
+            setIsAlertActive(false);
           }
         },
         (err) => {
@@ -91,6 +147,20 @@ const Dashboard = () => {
       );
     } else {
       setError('Geolocation not supported by this browser.');
+    }
+  };
+
+  const handleResolveAlert = async () => {
+    if (!activeAlertId) return;
+    try {
+      await resolveAlert(activeAlertId);
+      setIsAlertActive(false);
+      setActiveAlertId(null);
+      setActiveResponders([]);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to resolve alert:", err);
+      setError("Failed to cancel SOS. Please try again.");
     }
   };
 
@@ -201,18 +271,148 @@ const Dashboard = () => {
               )}
               
               {isAlertActive && (
-                <div className="fade-in" style={{ marginTop: '2.5rem', padding: '1rem', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '0.75rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                  <p style={{ color: '#34d399', margin: 0, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                    <MapPin size={18} /> Signal broadcasting. Help is on the way.
-                  </p>
+                <div className="fade-in" style={{ marginTop: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ padding: '1rem', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '0.75rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                    <p style={{ color: '#34d399', margin: 0, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                      <span className="sos-pulse" style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#34d399', marginRight: '0.5rem' }}></span>
+                      <MapPin size={18} /> Signal broadcasting. Help is on the way.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={handleResolveAlert}
+                    className="btn btn-danger"
+                    style={{ 
+                      width: '100%', 
+                      fontWeight: '700', 
+                      padding: '1rem', 
+                      fontSize: '1.1rem',
+                      textTransform: 'uppercase', 
+                      letterSpacing: '1px',
+                      boxShadow: '0 4px 20px rgba(239, 68, 68, 0.3)',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    I Am Safe Now
+                  </button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Right Side: Quick Info */}
-          <div style={{ display: 'grid', gridTemplateRows: 'auto auto', gap: '2rem' }}>
+          {/* Right Side: Quick Info & Active Responders */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             
+            {/* Active Responders Card */}
+            {isAlertActive && activeResponders.length > 0 && (
+              <div className="glass-card fade-in" style={{ 
+                padding: '2rem', 
+                border: '1px solid rgba(99, 102, 241, 0.2)', 
+                background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                boxShadow: '0 8px 32px 0 rgba(99, 102, 241, 0.15)'
+              }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', color: 'white', fontSize: '1.25rem' }}>
+                  <div className="sos-pulse" style={{ background: 'rgba(99, 102, 241, 0.2)', padding: '0.5rem', borderRadius: '0.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <HeartHandshake size={22} color="#818cf8" />
+                  </div>
+                  Active Responders
+                </h3>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  {activeResponders.map((responder, index) => (
+                    <div key={index} style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '1rem', 
+                      padding: '1.25rem', 
+                      background: 'rgba(255,255,255,0.03)', 
+                      borderRadius: '1rem', 
+                      border: '1px solid rgba(255,255,255,0.05)',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}>
+                      {/* Status indicator glow strip */}
+                      <div style={{ 
+                        position: 'absolute', 
+                        left: 0, 
+                        top: 0, 
+                        bottom: 0, 
+                        width: '4px', 
+                        background: responder.status === 'arrived' ? '#10b981' : '#6366f1' 
+                      }}></div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <p style={{ fontWeight: 700, color: 'white', fontSize: '1.1rem', margin: '0 0 0.25rem 0' }}>{responder.volunteerName}</p>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem', margin: 0 }}>
+                            <Clock size={12} /> Accepted at {responder.respondedAt}
+                          </p>
+                        </div>
+                        
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          fontWeight: 700, 
+                          padding: '0.35rem 0.85rem', 
+                          borderRadius: '2rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          background: responder.status === 'arrived' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                          color: responder.status === 'arrived' ? '#10b981' : '#818cf8',
+                          border: responder.status === 'arrived' ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(99, 102, 241, 0.3)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          {responder.status === 'arrived' ? (
+                            <>
+                              <CheckCircle size={12} /> Arrived
+                            </>
+                          ) : (
+                            <>
+                              <Navigation size={12} /> En Route
+                            </>
+                          )}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.85rem', marginTop: '0.25rem' }}>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                          Need to coordinate?
+                        </span>
+                        
+                        <a href={`tel:${responder.volunteerPhone}`} style={{ 
+                          padding: '0.5rem 1.25rem', 
+                          background: 'rgba(16, 185, 129, 0.15)', 
+                          color: '#10b981', 
+                          borderRadius: '0.75rem', 
+                          display: 'flex', 
+                          justifyContent: 'center', 
+                          alignItems: 'center', 
+                          gap: '0.5rem',
+                          textDecoration: 'none', 
+                          fontWeight: 600,
+                          fontSize: '0.875rem',
+                          border: '1px solid rgba(16, 185, 129, 0.2)',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = 'rgba(16, 185, 129, 0.25)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                        >
+                          <PhoneCall size={14} /> Call Rescuer
+                        </a>
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Checklist Card */}
             <div className="glass-card" style={{ padding: '2rem', border: '1px solid rgba(255,255,255,0.05)', background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%)' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', color: 'white', fontSize: '1.25rem' }}>

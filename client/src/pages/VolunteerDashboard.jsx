@@ -49,7 +49,8 @@ const VolunteerDashboard = () => {
       socket.emit('volunteer_responding', {
         userId: data.userId._id || data.userId,
         volunteerId: user._id,
-        volunteerName: user.name
+        volunteerName: user.name,
+        volunteerPhone: user.phone || 'N/A'
       });
       
       navigate(`/incident/${alertId}`, { state: { alert: data } });

@@ -32,7 +32,9 @@ const createAlert = async (req, res) => {
 // @route   GET /api/alerts/history
 // @access  Private
 const getAlertHistory = async (req, res) => {
-  const alerts = await Alert.find({ userId: req.user._id }).sort({ timestamp: -1 });
+  const alerts = await Alert.find({ userId: req.user._id })
+    .populate('responders.volunteerId', 'name phone')
+    .sort({ timestamp: -1 });
   res.json(alerts);
 };
 
