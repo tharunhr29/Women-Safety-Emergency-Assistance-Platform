@@ -52,6 +52,10 @@ const ActiveIncident = () => {
 
   useEffect(() => {
     const restoreSession = async () => {
+      if (user && user.role !== 'volunteer') {
+        navigate('/dashboard');
+        return;
+      }
       if (user && user.role === 'volunteer' && !user.isVerified) {
         navigate('/volunteer-dashboard');
         return;
