@@ -8,10 +8,14 @@ import { useNavigate } from 'react-router-dom';
 const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
 
 const VolunteerDashboard = () => {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    refreshProfile();
+  }, []);
 
   useEffect(() => {
     if (user && user.role === 'volunteer') {

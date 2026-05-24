@@ -15,24 +15,26 @@ export const AuthProvider = ({ children }) => {
     navigate('/login');
   };
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (user && user.token) {
-        try {
-          const { data } = await api.getProfile();
-          // Merge fresh data with the token
-          const freshUser = { ...data, token: user.token };
-          setUser(freshUser);
-          localStorage.setItem('user', JSON.stringify(freshUser));
-        } catch (error) {
-          console.error("Failed to fetch fresh profile", error);
-          if (error.response?.status === 401) {
-            logout();
-          }
+  const refreshProfile = async () => {
+    if (user && user.token) {
+      try {
+        const { data } = await api.getProfile();
+        // Merge fresh data with the token
+        const freshUser = { ...data, token: user.token };
+        setUser(freshUser);
+        localStorage.setItem('user', JSON.stringify(freshUser));
+        return freshUser;
+      } catch (error) {
+        console.error("Failed to fetch fresh profile", error);
+        if (error.response?.status === 401) {
+          logout();
         }
       }
-    };
-    fetchProfile();
+    }
+  };
+
+  useEffect(() => {
+    refreshProfile();
   }, []);
 
   const login = async (formData) => {
@@ -88,7 +90,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, adminLogin, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, adminLogin, register, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
